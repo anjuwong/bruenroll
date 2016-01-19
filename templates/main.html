@@ -1,0 +1,29 @@
+<!doctype html>
+<head>
+    <title>BruEnroll</title>
+    <link rel="stylesheet" href="static/style.css" type="text/css" />
+    <link rel="stylesheet" href="https://cdn.rawgit.com/twbs/bootstrap/v4-dev/dist/css/bootstrap.css" />
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.1.1/js/tether.min.js"></script>
+    <script type="text/javascript" src="https://cdn.rawgit.com/twbs/bootstrap/v4-dev/dist/js/bootstrap.js" ></script>
+    <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+    <script type="text/javascript" src="static/scripts.js"></script>
+</head>
+<body>
+<center>
+<h1><blue>Bru</blue><gold>Enroll</gold></h1>
+<h3>Class enrollment statistics at UCLA</h3>
+</center>
+<div class="container">
+    <div id="dept-list" class="list-group"></div>
+    <div id="course-list" class="list-group"></div>
+</div>
+<div id="svg-container"></div>
+
+<script type="text/javascript">
+$("#course-list").hide();
+populateDepts();
+populateCourses("W", 2016, "COM SCI");
+</script>
+
+</body>
