@@ -7,4 +7,4 @@ the project found [here](https://github.com/anjuwong/clsc), formatted a bit more
 nicely, using MongoDB instead of MySQL, and with a front-end written with Python
 instead of PHP.
 
-[!alt tag](page.png)
+[!Alt text](/page.png)
