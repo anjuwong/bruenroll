@@ -56,10 +56,11 @@ class Registrar:
     def updateCourses(self, term, year, dept):
         """
         Get the course numbers for a given term for a given department
+        Put it into the database
         :param term: member of (summer, fall, winter, spring)
         :param year: two-digit year, assumed 20XX
         :param dept: dept (must exist in deptList from getDepartments)
-        :return: list of Course objects
+        :return:
         """
         assert(dept in self.deptList)
         assert(len(str(year)) == 2 or len(str(year)) == 4)
@@ -76,6 +77,10 @@ class Registrar:
         soup = BeautifulSoup(r.text)
         courses = cleanCourses([str(c.string) for c in soup.find_all('span', 'coursehead')])
         profs = [str(fac.string[3:]) for fac in soup.find_all('span', 'fachead')]
+
+        if len(courses) == 0:
+            return
+
         assert(len(courses) == len(profs))
 
         dgdClasses = ['dgdClassDataTimeStart',
@@ -160,7 +165,7 @@ class Registrar:
 
                 else:
                     # new enrollment count; push new enrollment and enrollsdaycount
-                    print crs["title"] + ": new daycount added " + str(crs["enrolls"]) + " with " + crs["prof"]
+                    print crs["title"] + ": new daycount added [" + str(crs["enrolls"]) + ", " + str(en) + "] with " + crs["prof"]
                     self.db.courses.update_one({"_id": crs["_id"]},
                                            {"$push": {"enrolls": en, "enrollsdaycount": 1}}, upsert=False)
 
@@ -229,8 +234,13 @@ def cleanCourses(courses):
     return ret
 
 def isNormalClass(title):
+    """
+    Returns whether title belongs to a research-based class
+    :param title: string containing the full course name, number, section
+    :return: false if the class is a research class (courseno. _9X), else true
+    """
     numbers = [int(num) for num in findall("\d+", title)]
-    if max(numbers) > 289 or max(numbers) % 100 == 99:
+    if max(numbers) > 289 or max(numbers) % 100 > 90:
         return False
     return True
 
@@ -257,6 +267,14 @@ def termSymbol(word):
 
 
 def encodeTerm(term, year):
+    """
+    Terms are encoded as XXY
+    XX: the year in 20XX
+    Y: {1,2,3,4} based on the season
+    :param term: season, given as a single char
+    :param year: given as either 20XX or just XX
+    :return: encoding, given as XXY
+    """
     year = int(year) % 100
     termDict = {
         'W': 1,
@@ -269,6 +287,13 @@ def encodeTerm(term, year):
 
 
 def decodeTerm(term):
+    """
+    Terms are encoded as XXY
+    XX: the year in 20XX
+    Y: {1,2,3,4} based on the season
+    :param term: encoded XXY term
+    :return: tuple containing the year (XX) and the season
+    """
     year = int(term/10)
     term = term-(year*10)
     termDict = {
@@ -282,14 +307,28 @@ def decodeTerm(term):
 
 
 def getCurrentActiveTerms():
+    """
+    Gets the current active terms based on the date
+    First checks what the current quarter is
+    Second checks when enrollment passes open
+    :return: list of terms with currently active enrollment numbers
+    """
     m = datetime.datetime.today().month
     terms = []
-    if m <= 3:
+    if m <= 3:     # 1 through 3
         terms.append('W')
-    elif m <= 6:
+    elif m <= 6:   # 4 through 6
         terms.append('S')
-    elif m <= 8:
+    elif m <= 8:   # 7 through 8
         terms.append('1')
-    elif m <= 12:
+    elif m <= 12:  # 9 through 12
         terms.append('F')
+
+    # Rough estimate for when first pass starts
+    if m == 2 or m == 3:
+        terms.append('S')
+    elif m == 7 or m == 8:
+        terms.append('F')
+    elif m == 10 or m == 11:
+        terms.append('W')
     return terms[0]
