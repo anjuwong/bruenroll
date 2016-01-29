@@ -6,6 +6,7 @@ import datetime
 import pymongo
 import json
 from bson.json_util import dumps
+import mongoRegistrarDB
 
 """
 Daily: connect to default mongoDB and update entries
@@ -29,9 +30,7 @@ class Registrar:
             self.db = db
         else:
             # Set up the database
-            client = pymongo.MongoClient("127.0.0.1:27017")
-            self.db = client.uclaregistrar  # collection name is uclaregistrar
-            self.db.courses.create_index([("term", pymongo.ASCENDING), ("dept", pymongo.ASCENDING)])
+            self.db = mongoRegistrarDB.MongoRegistrarDB()
         self.getDepartments()
 
     def getDepartments(self):
@@ -143,48 +142,37 @@ class Registrar:
             else:
                 en = int(allEnrolls[i])
 
-            courseCursor = self.db.courses.find(\
-                    {
-                        "term": encodeTerm(term, year),
-                        "dept": dept,
-                        "title": courses[i],
-                        "prof": profs[i],
-                        "timestart": allTimeStarts[i],
-                        "days": allDays[i]
-                    }
-            )
+            courseCursor = self.db.queryCourse(
+                encodeTerm(term, year),
+                dept,
+                courses[i],
+                profs[i],
+                allTimeStarts[i],
+                allDays[i])
+
             for crs in courseCursor:
                 if crs["enrolls"][-1] == en:
                     # increment enrollsdaycount
                     # pop and push (current pymongo does not allow for updating single element of array)
                     print crs["title"] + ": increased daycount to " + str(crs["enrollsdaycount"][-1]+1) + " with " + crs["prof"]
-                    self.db.courses.update_one({"_id": crs["_id"]},
-                                           {"$pop": {"enrollsdaycount": 1}})
-                    self.db.courses.update_one({"_id": crs["_id"]},
-                                           {"$push": {"enrollsdaycount": crs["enrollsdaycount"][-1]+1}})
-
+                    self.db.incrementEnrollment(crs)
                 else:
                     # new enrollment count; push new enrollment and enrollsdaycount
                     print crs["title"] + ": new daycount added [" + str(crs["enrolls"]) + ", " + str(en) + "] with " + crs["prof"]
-                    self.db.courses.update_one({"_id": crs["_id"]},
-                                           {"$push": {"enrolls": en, "enrollsdaycount": 1}}, upsert=False)
+                    self.db.addNewEnrollment(crs, en)
 
             if courseCursor.count() == 0:
                 print courses[i] + " new entry added with " + profs[i]
-                self.db.courses.insert_one(\
-                    {
-                        "term": encodeTerm(term, year),
-                        "dept": dept,
-                        "title": courses[i],
-                        "prof": profs[i],
-                        "timestart": allTimeStarts[i],
-                        "timeend": allTimeEnds[i],
-                        "days": allDays[i],
-                        "enrolls": [en],
-                        "enrollsdaycount": [1],
-                        "cap": cap,
-                    }\
-                )
+                self.db.addNewCourse(
+                        encodeTerm(term, year),
+                        dept,
+                        courses[i],
+                        profs[i],
+                        allTimeStarts[i],
+                        allTimeEnds[i],
+                        allDays[i],
+                        en,
+                        cap)
         return
 
     def updateAll(self, term, year):
@@ -197,16 +185,11 @@ class Registrar:
         return json.dumps(self.deptList)
 
     def queryCoursesJSON(self, term, year, dept):
-        cursor = self.db.courses.find(
-            {
-                "term": encodeTerm(term, year),
-                "dept": dept
-            }
-        )
+        cursor = self.db.queryTerm(encodeTerm(term, year), dept)
         return dumps(cursor)
 
     def clearCourseCollection(self):
-        self.db.courses.remove()
+        self.db.emptyDB()
 
 ############################################################
 #
