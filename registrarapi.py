@@ -82,9 +82,10 @@ class Registrar:
 
         assert(len(courses) == len(profs))
 
-        dgdClasses = ['dgdClassDataTimeStart',
-                      'dgdClassDataTimeEnd',
+        dgdClasses = ['dgdClassDataSectionNumber',
                       'dgdClassDataDays',
+                      'dgdClassDataTimeStart',
+                      'dgdClassDataTimeEnd',
                       'dgdClassDataEnrollTotal',
                       'dgdClassDataEnrollCap']
         tdTags = soup.find_all('td', {'class': dgdClasses})
@@ -94,30 +95,61 @@ class Registrar:
         allEnrolls = []
         allCaps = []
 
+        encodeTag = {}
+        encodeTag['dgdClassDataSectionNumber'] = 1
+        encodeTag['dgdClassDataDays'] = 2
+        encodeTag['dgdClassDataTimeStart'] = 3
+        encodeTag['dgdClassDataTimeEnd'] = 4
+        encodeTag['dgdClassDataEnrollTotal'] = 5
+        encodeTag['dgdClassDataEnrollCap'] = 6
+        prevEncoding = 0
+        stage = {}
+        stage['dgdClassDataDays'] = ''
+        stage['dgdClassDataTimeStart'] = ''
+        stage['dgdClassDataTimeEnd'] = ''
+        stage['dgdClassDataEnrollTotal'] = ''
+        stage['dgdClassDataEnrollCap'] = ''
+        expectedSum = 21
+        stagingSum = 0
         for td in tdTags:
             # get all bolded spans within a td tag
             bolded = td.find('span', 'bold')
             if td.find('span', 'bold') is not None:
                 tagClass = td["class"][0]
-                if tagClass == 'dgdClassDataTimeStart':
-                    allTimeStarts.append(bolded.string)
-                elif tagClass == 'dgdClassDataTimeEnd':
-                    allTimeEnds.append(bolded.string)
-                elif tagClass == 'dgdClassDataDays':
-                    allDays.append(bolded.string)
-                elif tagClass == 'dgdClassDataEnrollTotal':
-                    allEnrolls.append(bolded.string)
-                elif tagClass == 'dgdClassDataEnrollCap':
-                    allCaps.append(bolded.string)
+                if prevEncoding > encodeTag[tagClass]:
+                    # if we're at the front of a new set of dgdClass tags
+                    if stagingSum == expectedSum:
+                        # good: add everything to each list
+                        allDays.append(stage['dgdClassDataDays'])
+                        allTimeStarts.append(stage['dgdClassDataTimeStart'])
+                        allTimeEnds.append(stage['dgdClassDataTimeEnd'])
+                        allEnrolls.append(stage['dgdClassDataEnrollTotal'])
+                        allCaps.append(stage['dgdClassDataEnrollCap'])
+                        stagingSum = 0
+                    else:
+                        stagingSum = 0
+                # ignore tags with missing section number
+                if tagClass == 'dgdClassDataSectionNumber' and bolded.string is None:
+                    continue
+                stagingSum += encodeTag[tagClass]
+                prevEncoding = encodeTag[tagClass]
+                stage[tagClass] = bolded.string
 
+        if stagingSum == expectedSum:
+            # Finish off the end
+            allDays.append(stage['dgdClassDataDays'])
+            allTimeStarts.append(stage['dgdClassDataTimeStart'])
+            allTimeEnds.append(stage['dgdClassDataTimeEnd'])
+            allEnrolls.append(stage['dgdClassDataEnrollTotal'])
+            allCaps.append(stage['dgdClassDataEnrollCap'])
         # Some classes may have an added bold section after to fit in a mandatory discussion section
         # They do not have a specific enrollment count
         #   Ignore them
-        allTimeStarts = [allTimeStarts[i] for i in range(len(allEnrolls)) if allCaps[i] is not None]
-        allTimeEnds = [allTimeEnds[i] for i in range(len(allEnrolls)) if allCaps[i] is not None]
-        allDays = [allDays[i] for i in range(len(allEnrolls)) if allCaps[i] is not None]
-        allEnrolls = [allEnrolls[i] for i in range(len(allEnrolls)) if allCaps[i] is not None]
-        allCaps = [allCaps[i] for i in range(len(allEnrolls)) if allCaps[i] is not None]
+        allTimeStarts = [allTimeStarts[i] for i in range(len(allEnrolls)) if allDays[i] is not ""]
+        allTimeEnds = [allTimeEnds[i] for i in range(len(allEnrolls)) if allDays[i] is not ""]
+        allDays = [allDays[i] for i in range(len(allEnrolls)) if allDays[i] is not ""]
+        allEnrolls = [allEnrolls[i] for i in range(len(allEnrolls)) if allDays[i] is not ""]
+        allCaps = [allCaps[i] for i in range(len(allEnrolls)) if allDays[i] is not ""]
 
         assert(len(allTimeStarts) == len(allTimeEnds))
         assert(len(allTimeStarts) == len(allDays))
@@ -143,12 +175,12 @@ class Registrar:
                 en = int(allEnrolls[i])
 
             courseCursor = self.db.queryCourse(
-                encodeTerm(term, year),
-                dept,
-                courses[i],
-                profs[i],
-                allTimeStarts[i],
-                allDays[i])
+                    encodeTerm(term, year),
+                    dept,
+                    courses[i],
+                    profs[i],
+                    allTimeStarts[i],
+                    allDays[i])
 
             for crs in courseCursor:
                 if crs["enrolls"][-1] == en:
