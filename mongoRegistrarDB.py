@@ -1,4 +1,15 @@
 import pymongo
+import json
+from django.core.serializers.json import DjangoJSONEncoder
+from bson import objectid
+
+class MongoAwareEncoder(DjangoJSONEncoder):
+    """JSON encoder class that adds support for Mongo objectids."""
+    def default(self, o):
+        if isinstance(o, objectid.ObjectId):
+            return str(o)
+        else:
+            return super(MongoAwareEncoder,self).default(o)
 
 class MongoRegistrarDB:
 
@@ -6,7 +17,13 @@ class MongoRegistrarDB:
         client = pymongo.MongoClient("127.0.0.1:27017")
         self.db = client.uclaregistrar  # collection name is uclaregistrar
         self.db.courses.create_index([("term", pymongo.ASCENDING), ("dept", pymongo.ASCENDING)])
-        return
+
+    def dump(self):
+        """
+        Print the DB as a json
+        """
+        for doc in self.db.courses.find():
+            print json.dumps({'results':doc}, cls=MongoAwareEncoder)
 
     def queryCourse(self, encodedterm, dept, course, prof, timestart, days):
         """

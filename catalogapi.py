@@ -153,8 +153,8 @@ class Catalog:
 
         if len(descriptionList) == 0:
             return
-        descriptions = ["!@#$%\n"+desc[0]+"\n"+desc[1] for desc in descriptionList if len(desc) > 0]
-        descriptions = "\n".join(descriptions)
+        descriptions = ["!@#$%\n"+desc[0]+"\n"+desc[1]+"\n" for desc in descriptionList if len(desc) > 0]
+        descriptions = "".join(descriptions)
         descriptions = removeNonAscii(descriptions)
         print descriptions
         self.wfile.write(descriptions)

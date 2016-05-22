@@ -33,6 +33,9 @@ class Registrar:
             self.db = mongoRegistrarDB.MongoRegistrarDB()
         self.getDepartments()
 
+    def dump(self):
+        self.db.dump()
+
     def getDepartments(self):
         """
         Query the registrar for a list of the departments

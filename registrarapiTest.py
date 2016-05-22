@@ -5,7 +5,9 @@ def main():
     # print registrarapi.encodeTerm('S')
     r = Registrar()
     # r.clearCourseCollection()
-    r.updateCourses(getCurrentActiveTerms(), 2016, 'COM SCI')
+    r.updateCourses('S', 2016, 'COM SCI')
+    # print "_________DONE_________"
+    # r.updateCourses('W', 2016, 'COM SCI')
     # print r.queryCoursesJSON("W", 2016, "COM SCI")
     return
 
